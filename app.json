@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Sortu",
+    "slug": "sortu",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1F17"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sortu.app"
+    },
+    "android": {
+      "package": "com.sortu.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B1F17"
+      }
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "67e792cf-50d3-4737-aa26-0a48b49ac245"
+      }
+    },
+    "owner": "tamada"
+  }
+}

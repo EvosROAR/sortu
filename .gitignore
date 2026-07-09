@@ -1,0 +1,11 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+node_modules/
+.expo/
+dist/
+web-build/
+*.jsc
+.env
+.env.local
+*.log
+.DS_Store

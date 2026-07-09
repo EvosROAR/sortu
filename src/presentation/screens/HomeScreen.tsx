@@ -1,12 +1,23 @@
 import { useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { upcomingDuePockets } from '@/application/DueReminderService';
-import { exportBackupFile } from '@/application/BackupService';
-import { chooseAction, showMessage } from '@/lib/confirm';
+import {
+  requestExactAlarmPermissionIfNeeded,
+  upcomingDuePockets,
+} from '@/application/DueReminderService';
+import {
+  BackupParseError,
+  BackupExportCancelledError,
+  exportBackupFile,
+  ledgerFromBackup,
+  pickAndParseBackup,
+  summarizeBackup,
+} from '@/application/BackupService';
+import { saveLedger, type LedgerSnapshot } from '@/infrastructure/storage/ledgerStorage';
+import { confirmAction, showMenu, showMessage } from '@/lib/confirm';
 import { colors, fonts, formatRp } from '@/lib/format';
 import { canRetrySync } from '@/lib/syncHint';
 import { PocketCard } from '@/presentation/components/PocketCard';
@@ -24,6 +35,14 @@ export function HomeScreen() {
   const isHydrated = useSortuStore((s) => s.isHydrated);
   const remindersEnabled = useSortuStore((s) => s.remindersEnabled);
   const setRemindersEnabled = useSortuStore((s) => s.setRemindersEnabled);
+
+  const onRemindersToggle = (enabled: boolean) => {
+    setRemindersEnabled(enabled);
+    if (enabled && Platform.OS === 'android') {
+      void requestExactAlarmPermissionIfNeeded();
+    }
+  };
+
   const user = useAuthStore((s) => s.user);
   const guestMode = useAuthStore((s) => s.guestMode);
   const requestLogin = useAuthStore((s) => s.requestLogin);
@@ -32,50 +51,113 @@ export function HomeScreen() {
   const syncReady = useSortuStore((s) => s.syncReady);
   const scopeId = useSortuStore((s) => s.scopeId);
   const getSnapshot = useSortuStore((s) => s.getSnapshot);
+  const hasLocalData = useSortuStore((s) => s.hasLocalData);
+  const replaceLedger = useSortuStore((s) => s.replaceLedger);
 
   const dueSoon = useMemo(() => upcomingDuePockets(pockets, 3), [pockets]);
   const contentInsets = useScreenContentInsets(36);
 
-  const onExportBackup = () => {
+  const commitImportedLedger = async (ledger: LedgerSnapshot) => {
+    replaceLedger(ledger);
+    if (scopeId !== 'pending') {
+      await saveLedger(scopeId, ledger);
+    }
+    showMessage('Backup diimpor', 'Data kantong dan riwayat sudah dipulihkan.');
+  };
+
+  const onImportBackup = () => {
     void (async () => {
       try {
-        await exportBackupFile(scopeId, getSnapshot());
-        showMessage('Backup tersimpan', 'File JSON siap disimpan atau dibagikan.');
-      } catch {
-        showMessage('Gagal', 'Tidak bisa mengekspor backup. Coba lagi.');
+        const backup = await pickAndParseBackup();
+        if (!backup) return;
+
+        const ledger = ledgerFromBackup(backup);
+        const summary = summarizeBackup(backup);
+
+        if (hasLocalData()) {
+          confirmAction(
+            'Timpa data sekarang?',
+            `Data di perangkat ini akan diganti dengan backup:\n\n${summary}\n\n` +
+              `Diekspor: ${backup.exportedAt.slice(0, 10)}`,
+            () => {
+              void commitImportedLedger(ledger);
+            },
+            'Impor',
+          );
+          return;
+        }
+
+        await commitImportedLedger(ledger);
+      } catch (e) {
+        const message =
+          e instanceof BackupParseError
+            ? e.message
+            : 'Tidak bisa membaca file backup. Coba lagi.';
+        showMessage('Gagal impor', message);
       }
     })();
   };
 
+  const onExportBackup = () => {
+    const runExport = (mode: 'device' | 'share') => {
+      void (async () => {
+        try {
+          await exportBackupFile(scopeId, getSnapshot(), mode);
+          if (mode === 'device') {
+            showMessage(
+              'Backup tersimpan',
+              'File JSON ada di folder yang kamu pilih (mis. Download). Buka Files untuk melihat.',
+            );
+          } else {
+            showMessage('Backup siap dibagikan', 'Pilih Gmail, Drive, atau app lain di sheet berikutnya.');
+          }
+        } catch (e) {
+          if (e instanceof BackupExportCancelledError) return;
+          showMessage('Gagal', 'Tidak bisa mengekspor backup. Coba lagi.');
+        }
+      })();
+    };
+
+    if (Platform.OS === 'web') {
+      runExport('device');
+      return;
+    }
+
+    showMenu('Ekspor backup', 'Simpan langsung ke penyimpanan HP, atau bagikan lewat app lain.', [
+      { label: 'Simpan ke HP', onPress: () => runExport('device'), role: 'confirm' },
+      { label: 'Bagikan (Gmail, Drive, …)', onPress: () => runExport('share') },
+    ]);
+  };
+
   const onAccount = () => {
     if (guestMode || !user) {
-      chooseAction(
+      showMenu(
         'Akun & backup',
-        'Login untuk sync cloud, atau ekspor data lokal ke file JSON.',
-        {
-          primaryLabel: 'Ke login',
-          onPrimary: () => requestLogin(),
-          secondaryLabel: 'Ekspor backup',
-          onSecondary: onExportBackup,
-          cancelLabel: 'Tutup',
-        },
+        'Login untuk sync cloud, atau kelola backup JSON lokal.',
+        [
+          { label: 'Ke login', onPress: () => requestLogin(), role: 'confirm' },
+          { label: 'Ekspor backup', onPress: onExportBackup },
+          { label: 'Impor backup', onPress: onImportBackup },
+        ],
       );
       return;
     }
 
-    chooseAction(
+    showMenu(
       user.displayName || user.email,
-      `${user.email}\n\nKeluar dari akun atau ekspor backup JSON.`,
-      {
-        primaryLabel: 'Keluar',
-        onPrimary: () => {
-          requestLogin();
-          showMessage('Keluar', 'Kamu sudah keluar dari akun.');
+      `${user.email}\n\nKeluar, ekspor, atau impor backup JSON.`,
+      [
+        {
+          label: 'Keluar',
+          onPress: () => {
+            requestLogin();
+            showMessage('Keluar', 'Kamu sudah keluar dari akun.');
+          },
+          role: 'danger',
         },
-        secondaryLabel: 'Ekspor backup',
-        onSecondary: onExportBackup,
-        cancelLabel: 'Tutup',
-      },
+        { label: 'Ekspor backup', onPress: onExportBackup },
+        { label: 'Impor backup', onPress: onImportBackup },
+      ],
     );
   };
 
@@ -188,12 +270,12 @@ export function HomeScreen() {
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.reminderTitle}>Pengingat jatuh tempo</Text>
             <Text style={styles.reminderHint}>
-              Notifikasi H-3 & H-1 di HP. Di web tampil sebagai banner di atas.
+              Notifikasi H-3, H-1 & hari H jam 09:00. Aktifkan "Alarm & pengingat" di Android. Buka app setelah jam 9 = cadangan.
             </Text>
           </View>
           <Switch
             value={remindersEnabled}
-            onValueChange={setRemindersEnabled}
+            onValueChange={onRemindersToggle}
             trackColor={{ false: colors.border, true: colors.accentDeep }}
             thumbColor={remindersEnabled ? colors.accent : colors.textMuted}
           />

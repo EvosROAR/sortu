@@ -37,6 +37,29 @@ npm start
 
 Lalu tekan `w` / Expo Go. Harus muncul layar **Masuk / Daftar**.
 
+## 5. Firebase di APK (EAS Build)
+
+File `.env` **tidak ikut** ke cloud build. Push ke EAS dulu:
+
+```bash
+cd D:\Projects\sortu
+eas env:push preview --path .env --force
+```
+
+Lalu build ulang:
+
+```bash
+npm run build:android
+```
+
+Tanpa langkah ini, APK hanya jalan **mode lokal** (login/sync gagal).
+
+## 6. Firestore rules (project sama dengan PocketLedger)
+
+Kalau pakai **satu** Firebase project untuk PocketLedger + Sortu, publish rules **gabungan** dari `firestore.merged.rules` (bukan cuma rules PocketLedger).
+
+Path Sortu di cloud: `users/{uid}/app/sortu`
+
 ## Perilaku sync (setelah hardening)
 
 | Situasi | Yang terjadi |

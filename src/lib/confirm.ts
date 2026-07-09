@@ -100,6 +100,26 @@ export function showMessage(title: string, message?: string) {
   });
 }
 
+/** Dialog menu dengan beberapa aksi + tombol tutup. */
+export function showMenu(
+  title: string,
+  message: string,
+  items: { label: string; onPress: () => void; role?: DialogButton['role'] }[],
+) {
+  useDialogStore.getState().show({
+    title,
+    message,
+    buttons: [
+      ...items.map((item) => ({
+        label: item.label,
+        role: item.role ?? 'cancel',
+        onPress: item.onPress,
+      })),
+      { label: 'Tutup', role: 'cancel' },
+    ],
+  });
+}
+
 export function digitsOnly(raw: string): string {
   return raw.replace(/[^\d]/g, '');
 }

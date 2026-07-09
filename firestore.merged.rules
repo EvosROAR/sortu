@@ -1,0 +1,31 @@
+// Publish di Firebase Console → Firestore → Rules
+// Gabungan PocketLedger + Sortu (satu project Firebase)
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // PocketLedger
+      match /categories/{categoryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /budgets/{budgetId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /recurring_transactions/{recurringId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Sortu
+      match /app/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

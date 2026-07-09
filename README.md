@@ -104,17 +104,28 @@ sortu/
 
 | Fase | Isi | Estimasi kasar |
 |------|-----|----------------|
-| 2 – Reminder | H-3 / H-1 + banner due | ✅ |
-| 3 – Firebase | Auth + sync Firestore | ✅ (setup `.env` + rules) |
-| 4 – Payment | Midtrans sandbox dari layar kantong | berikutnya |
-| 5 – Polish | Onboarding, icon/splash, Play Store | belakangan |
+| 2 – Reminder | H-3 / H-1 + alarm jam 09:00 | ✅ |
+| 3 – Firebase | Auth + sync Firestore | ✅ |
+| 3b – Backup | Ekspor & impor JSON | ✅ |
+| 4 – Payment | Midtrans sandbox | nanti |
+| 5 – Polish | Icon/splash, Play Store | belakangan |
 
 ---
 
 ## Status sekarang
 
-- MVP lokal: kantong, alokasi, bayar, riwayat, reminder  
+- MVP lokal: kantong, alokasi, bayar, riwayat  
+- **Pengingat jatuh tempo** — H-3 / H-1 / hari H jam **09:00** (alarm + catch-up)  
+- **Backup JSON** — ekspor ke HP & impor dari menu Akun  
 - **Firebase Auth + sync** (lihat `docs/FIREBASE_SETUP.md`)
+
+### Build APK stabil
+
+```bash
+npm run build:android
+```
+
+Install APK preview di emulator/HP. Butuh izin **Notifikasi** + **Alarm & pengingat** (Android) untuk notif jam 9.
 
 ## Menjalankan
 

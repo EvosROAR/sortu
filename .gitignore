@@ -9,3 +9,9 @@ web-build/
 .env.local
 *.log
 .DS_Store
+
+# Build artifacts
+*.apk
+*.aab
+android/
+ios/

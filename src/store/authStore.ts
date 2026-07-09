@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { AuthUser } from '@/domain/entities/Auth';
+import { authService } from '@/infrastructure/firebase/authService';
+import { isFirebaseConfigured } from '@/infrastructure/firebase/config';
 
 type AuthState = {
   user: AuthUser | null;
@@ -14,6 +16,8 @@ type AuthState = {
   setLoading: (v: boolean) => void;
   setGuestMode: (v: boolean) => void;
   logoutLocal: () => void;
+  /** Keluar guest / reset session → tampilkan layar login. */
+  requestLogin: () => void;
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -30,10 +34,27 @@ export const useAuthStore = create<AuthState>()(
             : { user: null, isAuthenticated: false, isLoading: false },
         ),
       setLoading: (isLoading) => set({ isLoading }),
-      setGuestMode: (guestMode) =>
-        set({ guestMode, isLoading: false, user: null, isAuthenticated: false }),
+      setGuestMode: (guestMode) => {
+        if (guestMode && isFirebaseConfigured()) {
+          void authService.logout().catch(() => undefined);
+        }
+        set({ guestMode, isLoading: false, user: null, isAuthenticated: false });
+      },
       logoutLocal: () =>
         set({ user: null, isAuthenticated: false, guestMode: false }),
+      requestLogin: () => {
+        void (async () => {
+          set({ guestMode: false, user: null, isAuthenticated: false, isLoading: true });
+          if (isFirebaseConfigured()) {
+            try {
+              await authService.logout();
+            } catch {
+              // ignore
+            }
+          }
+          set({ isLoading: false });
+        })();
+      },
     }),
     {
       name: 'sortu-auth',

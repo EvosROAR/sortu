@@ -3,14 +3,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { BackLink, Field, MoneyField, PrimaryButton, Screen, useScreenContentInsets } from '@/presentation/components/ui';
+import { BackLink, Field, KeyboardScroll, MoneyField, PrimaryButton, Screen } from '@/presentation/components/ui';
 import { RootStackParamList } from '@/presentation/navigation/types';
 import { digitsOnly, formatAmountInput, parseAmountInput, showMessage } from '@/lib/confirm';
 import { EMOJI_PRESETS, colors, fonts } from '@/lib/format';
@@ -38,7 +37,6 @@ export function PocketFormScreen() {
   const [note, setNote] = useState(existing?.note ?? '');
 
   const isEdit = useMemo(() => Boolean(existing), [existing]);
-  const contentInsets = useScreenContentInsets(40);
 
   const onSave = () => {
     if (!name.trim()) {
@@ -78,11 +76,7 @@ export function PocketFormScreen() {
 
   return (
     <Screen scrollable>
-      <ScrollView
-        contentContainerStyle={[contentInsets, styles.content]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <KeyboardScroll contentContainerStyle={styles.content} bottomPad={48}>
         <BackLink onPress={() => navigation.goBack()} />
         <Animated.View entering={FadeInDown.duration(400)}>
           <Text style={styles.title}>{isEdit ? 'Edit kantong' : 'Kantong baru'}</Text>
@@ -130,7 +124,7 @@ export function PocketFormScreen() {
         />
 
         <PrimaryButton label={isEdit ? 'Simpan' : 'Buat kantong'} onPress={onSave} />
-      </ScrollView>
+      </KeyboardScroll>
     </Screen>
   );
 }

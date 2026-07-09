@@ -6,8 +6,6 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { upcomingDuePockets } from '@/application/DueReminderService';
 import { exportBackupFile } from '@/application/BackupService';
-import { authService } from '@/infrastructure/firebase/authService';
-import { isFirebaseConfigured } from '@/infrastructure/firebase/config';
 import { chooseAction, showMessage } from '@/lib/confirm';
 import { colors, fonts, formatRp } from '@/lib/format';
 import { canRetrySync } from '@/lib/syncHint';
@@ -28,8 +26,7 @@ export function HomeScreen() {
   const setRemindersEnabled = useSortuStore((s) => s.setRemindersEnabled);
   const user = useAuthStore((s) => s.user);
   const guestMode = useAuthStore((s) => s.guestMode);
-  const logoutLocal = useAuthStore((s) => s.logoutLocal);
-  const setGuestMode = useAuthStore((s) => s.setGuestMode);
+  const requestLogin = useAuthStore((s) => s.requestLogin);
   const syncMessage = useSortuStore((s) => s.syncMessage);
   const requestSyncRetry = useSortuStore((s) => s.requestSyncRetry);
   const syncReady = useSortuStore((s) => s.syncReady);
@@ -57,7 +54,7 @@ export function HomeScreen() {
         'Login untuk sync cloud, atau ekspor data lokal ke file JSON.',
         {
           primaryLabel: 'Ke login',
-          onPrimary: () => setGuestMode(false),
+          onPrimary: () => requestLogin(),
           secondaryLabel: 'Ekspor backup',
           onSecondary: onExportBackup,
           cancelLabel: 'Tutup',
@@ -72,17 +69,8 @@ export function HomeScreen() {
       {
         primaryLabel: 'Keluar',
         onPrimary: () => {
-          void (async () => {
-            try {
-              if (isFirebaseConfigured()) {
-                await authService.logout();
-              }
-            } catch {
-              // ignore
-            }
-            logoutLocal();
-            showMessage('Keluar', 'Kamu sudah keluar dari akun.');
-          })();
+          requestLogin();
+          showMessage('Keluar', 'Kamu sudah keluar dari akun.');
         },
         secondaryLabel: 'Ekspor backup',
         onSecondary: onExportBackup,

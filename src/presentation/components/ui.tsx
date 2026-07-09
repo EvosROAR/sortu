@@ -1,8 +1,11 @@
 import { ReactNode, useEffect, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   LayoutChangeEvent,
   Platform,
   Pressable,
+  ScrollView,
+  ScrollViewProps,
   StyleSheet,
   Text,
   TextInput,
@@ -75,6 +78,33 @@ export function Screen({
         {children}
       </View>
     </View>
+  );
+}
+
+/** Scroll + keyboard avoidance — field input tidak tertutup keyboard. */
+export function KeyboardScroll({
+  children,
+  contentContainerStyle,
+  bottomPad = 32,
+  ...rest
+}: ScrollViewProps & { bottomPad?: number }) {
+  const contentInsets = useScreenContentInsets(bottomPad);
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoid}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={[contentInsets, styles.keyboardContent, contentContainerStyle]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        automaticallyAdjustKeyboardInsets
+        {...rest}
+      >
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -260,6 +290,13 @@ const styles = StyleSheet.create({
     flex: 1,
     zIndex: 1,
     width: '100%',
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  keyboardContent: {
+    flexGrow: 1,
+    paddingBottom: 28,
   },
   btn: {
     paddingVertical: 15,

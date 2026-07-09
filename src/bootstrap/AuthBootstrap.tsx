@@ -15,7 +15,7 @@ export function AuthBootstrap() {
 
   useEffect(() => {
     if (!isFirebaseConfigured()) {
-      useAuthStore.getState().setGuestMode(true);
+      setLoading(false);
       return;
     }
 

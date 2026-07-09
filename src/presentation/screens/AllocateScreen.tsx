@@ -3,14 +3,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { BackLink, MoneyField, PrimaryButton, Screen, useScreenContentInsets } from '@/presentation/components/ui';
+import { BackLink, KeyboardScroll, MoneyField, PrimaryButton, Screen } from '@/presentation/components/ui';
 import { RootStackParamList } from '@/presentation/navigation/types';
 import { parseAmountInput, showMessage } from '@/lib/confirm';
 import { colors, fonts, formatRp } from '@/lib/format';
@@ -31,7 +30,6 @@ export function AllocateScreen() {
   const [toId, setToId] = useState(route.params?.pocketId ?? pockets[0]?.id ?? '');
   const [fromId, setFromId] = useState(pockets[0]?.id ?? '');
   const [amount, setAmount] = useState('');
-  const contentInsets = useScreenContentInsets(40);
 
   const onSubmit = () => {
     const value = parseAmountInput(amount);
@@ -61,11 +59,7 @@ export function AllocateScreen() {
 
   return (
     <Screen scrollable>
-      <ScrollView
-        contentContainerStyle={[contentInsets, styles.content]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <KeyboardScroll contentContainerStyle={styles.content} bottomPad={48}>
         <BackLink onPress={() => navigation.goBack()} />
         <Animated.View entering={FadeInDown.duration(400)}>
           <Text style={styles.title}>Sortir uang</Text>
@@ -133,7 +127,7 @@ export function AllocateScreen() {
         />
 
         <PrimaryButton label="Pindahkan ke kantong" onPress={onSubmit} />
-      </ScrollView>
+      </KeyboardScroll>
     </Screen>
   );
 }

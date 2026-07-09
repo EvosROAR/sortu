@@ -1,16 +1,16 @@
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import {
   BackLink,
+  KeyboardScroll,
   MoneyField,
   PrimaryButton,
   ProgressBar,
   Screen,
-  useScreenContentInsets,
 } from '@/presentation/components/ui';
 import { RootStackParamList } from '@/presentation/navigation/types';
 import {
@@ -36,7 +36,6 @@ export function PocketDetailScreen() {
   const deletePocket = useSortuStore((s) => s.deletePocket);
   const [payInput, setPayInput] = useState('');
   const [showAllHistory, setShowAllHistory] = useState(false);
-  const contentInsets = useScreenContentInsets(40);
 
   const events = useMemo(
     () => (pocket ? eventsForPocket(pocket.id) : []),
@@ -100,11 +99,7 @@ export function PocketDetailScreen() {
 
   return (
     <Screen scrollable>
-      <ScrollView
-        contentContainerStyle={[contentInsets, styles.content]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <KeyboardScroll contentContainerStyle={styles.content} bottomPad={48}>
         <BackLink onPress={() => navigation.goBack()} />
 
         <Animated.View entering={FadeInDown.duration(400)}>
@@ -228,7 +223,7 @@ export function PocketDetailScreen() {
 
         <View style={{ height: 20 }} />
         <PrimaryButton label="Hapus kantong" variant="danger" onPress={onDelete} />
-      </ScrollView>
+      </KeyboardScroll>
     </Screen>
   );
 }

@@ -168,7 +168,7 @@ function RootNavigator() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_700Bold,
@@ -176,7 +176,9 @@ export default function App() {
     Fraunces_700Bold,
   });
 
-  if (!fontsLoaded) {
+  const fontsReady = fontsLoaded || !!fontError;
+
+  if (!fontsReady) {
     return (
       <View
         style={{

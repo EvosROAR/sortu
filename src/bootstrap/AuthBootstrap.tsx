@@ -25,15 +25,28 @@ export function AuthBootstrap() {
     }
 
     setLoading(true);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      setLoading(false);
+    };
+
     const unsub = authService.onAuthStateChanged((user) => {
       if (useAuthStore.getState().guestMode) {
-        setLoading(false);
+        finish();
         return;
       }
       setUser(user);
     });
 
-    return unsub;
+    // Jangan stuck spinner jika auth callback terlewat (race rehydrate di web)
+    const timer = setTimeout(finish, 4000);
+
+    return () => {
+      clearTimeout(timer);
+      unsub();
+    };
   }, [guestMode, setLoading, setUser]);
 
   return null;

@@ -62,10 +62,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (s) => ({
         guestMode: s.guestMode,
       }),
-      onRehydrateStorage: () => (state) => {
-        // setelah hydrate, tetap tunggu AuthBootstrap set loading false
-        state?.setLoading(true);
-      },
     },
   ),
 );

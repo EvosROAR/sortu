@@ -61,13 +61,15 @@ export function createId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function dueLabel(dueDay: number | null): string {
+export function dueLabel(dueDay: number | null, settled = false): string {
   if (!dueDay) return 'Tanpa jatuh tempo';
+  if (settled) return `Lunas untuk jatuh tempo tgl ${dueDay}`;
   return `Jatuh tempo tgl ${dueDay}`;
 }
 
-export function remainderLabel(current: number, target: number): string {
+export function remainderLabel(current: number, target: number, settled = false): string {
   if (target <= 0) return 'Target belum diset';
+  if (settled && current <= 0) return 'Lunas — isi lagi untuk bulan depan';
   const left = target - current;
   if (left <= 0) return 'Target terpenuhi — siap dikeluarkan';
   return `Kurang ${formatRp(left)} lagi`;

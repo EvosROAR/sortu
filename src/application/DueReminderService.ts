@@ -3,7 +3,7 @@ import * as Application from 'expo-application';
 import { ActivityAction, startActivityAsync } from 'expo-intent-launcher';
 import * as Notifications from 'expo-notifications';
 
-import { Pocket } from '@/domain/entities/Pocket';
+import { MoneyEvent, Pocket } from '@/domain/entities/Pocket';
 import {
   clearDueReminderFiredToday,
   getReminderSyncFingerprint,
@@ -47,12 +47,75 @@ function nearestDueDate(dueDay: number, from = new Date()): Date {
   return due;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Tanggal jatuh tempo yang sedang aktif (termasuk grace H+0…H+3). */
+export function activeDueDate(dueDay: number, from = new Date()): Date {
+  const today = startOfDay(from);
+  const dueThisMonth = startOfDay(new Date(today.getFullYear(), today.getMonth(), dueDay));
+  const daysLeft = Math.round((dueThisMonth.getTime() - today.getTime()) / DAY_MS);
+
+  if (daysLeft < 0) {
+    if (daysLeft >= -3) return dueThisMonth;
+    return startOfDay(new Date(today.getFullYear(), today.getMonth() + 1, dueDay));
+  }
+  return dueThisMonth;
+}
+
+export function formatDueDateOnly(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseDueDateOnly(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  if (!y || !m || !d) return startOfDay(new Date(value));
+  return startOfDay(new Date(y, m - 1, d));
+}
+
+/** True kalau kantong sudah dilunasi untuk siklus jatuh tempo aktif. */
+export function isPocketDueSettled(pocket: Pocket, from = new Date()): boolean {
+  if (pocket.dueDay == null || !pocket.paidThroughDue) return false;
+  const active = activeDueDate(pocket.dueDay, from);
+  const paid = parseDueDateOnly(pocket.paidThroughDue);
+  return paid.getTime() >= active.getTime();
+}
+
+/**
+ * Isi paidThroughDue dari riwayat payment (untuk data lama sebelum field ini ada).
+ */
+export function backfillPaidThroughDue(pockets: Pocket[], events: MoneyEvent[]): Pocket[] {
+  return pockets.map((pocket) => {
+    if (pocket.dueDay == null || pocket.paidThroughDue) return pocket;
+
+    const active = activeDueDate(pocket.dueDay);
+    const windowStart = new Date(active);
+    windowStart.setDate(windowStart.getDate() - 14);
+    const windowEnd = new Date(active);
+    windowEnd.setDate(windowEnd.getDate() + 3);
+
+    const hasPayment = events.some((e) => {
+      if (e.type !== 'payment' || e.pocketId !== pocket.id) return false;
+      const day = startOfDay(new Date(e.createdAt));
+      return (
+        day.getTime() >= startOfDay(windowStart).getTime() &&
+        day.getTime() <= startOfDay(windowEnd).getTime()
+      );
+    });
+
+    if (!hasPayment) return pocket;
+    return { ...pocket, paidThroughDue: formatDueDateOnly(active) };
+  });
+}
+
 /** Sisa hari sampai jatuh tempo (0 = hari H). */
 export function daysUntilDue(dueDay: number, from = new Date()): number {
   const today = startOfDay(from);
   const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), dueDay);
   let daysLeft = Math.round(
-    (startOfDay(dueThisMonth).getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+    (startOfDay(dueThisMonth).getTime() - today.getTime()) / DAY_MS,
   );
 
   if (daysLeft < 0) {
@@ -61,7 +124,7 @@ export function daysUntilDue(dueDay: number, from = new Date()): number {
     } else {
       const dueNext = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
       daysLeft = Math.round(
-        (startOfDay(dueNext).getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+        (startOfDay(dueNext).getTime() - today.getTime()) / DAY_MS,
       );
     }
   }
@@ -202,9 +265,15 @@ export async function scheduleDueReminders(pockets: Pocket[]): Promise<void> {
 
   await cancelScheduledDueReminders();
 
-  const withDue = pockets.filter((p) => p.dueDay != null && p.dueDay >= 1 && p.dueDay <= 28);
+  const withDue = pockets.filter(
+    (p) =>
+      p.dueDay != null &&
+      p.dueDay >= 1 &&
+      p.dueDay <= 28 &&
+      !isPocketDueSettled(p),
+  );
   if (withDue.length === 0) {
-    await setReminderSyncFingerprint('');
+    await setReminderSyncFingerprint(dueReminderFingerprint(pockets));
     return;
   }
 
@@ -245,7 +314,13 @@ export async function runDueReminderCatchUp(pockets: Pocket[]): Promise<void> {
   const now = new Date();
   if (!isPastNineAm(now)) return;
 
-  const withDue = pockets.filter((p) => p.dueDay != null && p.dueDay >= 1 && p.dueDay <= 28);
+  const withDue = pockets.filter(
+    (p) =>
+      p.dueDay != null &&
+      p.dueDay >= 1 &&
+      p.dueDay <= 28 &&
+      !isPocketDueSettled(p, now),
+  );
 
   for (const pocket of withDue) {
     const dueDay = pocket.dueDay!;
@@ -265,7 +340,7 @@ export async function runDueReminderCatchUp(pockets: Pocket[]): Promise<void> {
 export function dueReminderFingerprint(pockets: Pocket[]): string {
   return pockets
     .filter((p) => p.dueDay != null && p.dueDay >= 1 && p.dueDay <= 28)
-    .map((p) => `${p.id}:${p.dueDay}`)
+    .map((p) => `${p.id}:${p.dueDay}:${p.paidThroughDue ?? ''}`)
     .sort()
     .join('|');
 }
@@ -289,6 +364,7 @@ export function upcomingDuePockets(
 
   for (const pocket of pockets) {
     if (pocket.dueDay == null) continue;
+    if (isPocketDueSettled(pocket)) continue;
     const daysLeft = daysUntilDue(pocket.dueDay);
     if (daysLeft <= withinDays) {
       result.push({ pocket, daysLeft });

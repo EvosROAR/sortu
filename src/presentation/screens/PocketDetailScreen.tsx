@@ -23,6 +23,7 @@ import {
   isMidtransConfigured,
   MIDTRANS_MIN_AMOUNT,
 } from '@/infrastructure/midtrans/midtransConfig';
+import { isPocketDueSettled } from '@/application/DueReminderService';
 import { RootStackParamList } from '@/presentation/navigation/types';
 import {
   confirmAction,
@@ -77,6 +78,7 @@ export function PocketDetailScreen() {
 
   const left = Math.max(0, pocket.targetAmount - pocket.currentAmount);
   const ready = pocket.targetAmount > 0 && left === 0 && pocket.currentAmount > 0;
+  const settled = isPocketDueSettled(pocket);
 
   const onPay = () => {
     const amount = payInput.trim()
@@ -225,7 +227,7 @@ export function PocketDetailScreen() {
             <Text style={styles.heroEmoji}>{pocket.emoji}</Text>
           </View>
           <Text style={styles.title}>{pocket.name}</Text>
-          <Text style={styles.due}>{dueLabel(pocket.dueDay)}</Text>
+          <Text style={styles.due}>{dueLabel(pocket.dueDay, settled)}</Text>
           {pocket.note ? <Text style={styles.note}>{pocket.note}</Text> : null}
         </Animated.View>
 
@@ -247,10 +249,10 @@ export function PocketDetailScreen() {
             target={pocket.targetAmount}
             delay={100}
           />
-          <Text style={[styles.remainder, ready && styles.remainderReady]}>
-            {ready
+          <Text style={[styles.remainder, (ready || settled) && styles.remainderReady]}>
+            {ready && !settled
               ? 'Target terpenuhi — siap dikeluarkan saat bayar sungguhan'
-              : remainderLabel(pocket.currentAmount, pocket.targetAmount)}
+              : remainderLabel(pocket.currentAmount, pocket.targetAmount, settled)}
           </Text>
         </Animated.View>
 

@@ -152,6 +152,9 @@ function isValidPocket(value: unknown): value is Pocket {
     Number.isFinite(value.currentAmount) &&
     Number.isFinite(value.targetAmount) &&
     (value.dueDay === null || (Number.isInteger(value.dueDay) && value.dueDay >= 1 && value.dueDay <= 28)) &&
+    (value.paidThroughDue === undefined ||
+      value.paidThroughDue === null ||
+      typeof value.paidThroughDue === 'string') &&
     typeof value.createdAt === 'string' &&
     typeof value.updatedAt === 'string'
   );

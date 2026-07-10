@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 
+import {
+  activeDueDate,
+  backfillPaidThroughDue,
+  formatDueDateOnly,
+} from '@/application/DueReminderService';
 import { MoneyEvent, Pocket, CreatePocketInput, UpdatePocketInput } from '@/domain/entities/Pocket';
 import { createId } from '@/lib/format';
 import {
@@ -189,11 +194,17 @@ export const useSortuStore = create<SortuState>((set, get) => ({
     };
 
     set({
-      pockets: get().pockets.map((p) =>
-        p.id === pocketId
-          ? { ...p, currentAmount: p.currentAmount - payAmount, updatedAt: nowIso() }
-          : p,
-      ),
+      pockets: get().pockets.map((p) => {
+        if (p.id !== pocketId) return p;
+        return {
+          ...p,
+          currentAmount: p.currentAmount - payAmount,
+          updatedAt: nowIso(),
+          ...(p.dueDay != null
+            ? { paidThroughDue: formatDueDateOnly(activeDueDate(p.dueDay)) }
+            : {}),
+        };
+      }),
       events: [event, ...get().events],
       updatedAt: nowIso(),
     });
@@ -277,7 +288,7 @@ export const useSortuStore = create<SortuState>((set, get) => ({
   replaceLedger: (data) =>
     set({
       unallocated: data.unallocated,
-      pockets: data.pockets,
+      pockets: backfillPaidThroughDue(data.pockets, data.events),
       events: data.events,
       remindersEnabled: data.remindersEnabled,
       updatedAt: data.updatedAt || nowIso(),

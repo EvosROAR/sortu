@@ -9,6 +9,11 @@ export type Pocket = {
   targetAmount: number;
   /** Hari jatuh tempo 1–28, atau null. */
   dueDay: number | null;
+  /**
+   * Tanggal jatuh tempo (YYYY-MM-DD) yang sudah dilunasi.
+   * Banner/reminder disembunyikan sampai siklus berikutnya.
+   */
+  paidThroughDue?: string | null;
   note?: string;
   createdAt: string;
   updatedAt: string;

@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ProgressBar } from '@/presentation/components/ui';
+import { isPocketDueSettled } from '@/application/DueReminderService';
 import { Pocket } from '@/domain/entities/Pocket';
 import { colors, dueLabel, fonts, formatRp, remainderLabel } from '@/lib/format';
 
@@ -22,6 +23,7 @@ export function PocketCard({ pocket, index = 0, onPress }: Props) {
   const scale = useSharedValue(1);
   const left = Math.max(0, pocket.targetAmount - pocket.currentAmount);
   const ready = pocket.targetAmount > 0 && left === 0 && pocket.currentAmount > 0;
+  const settled = isPocketDueSettled(pocket);
 
   const anim = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -37,7 +39,7 @@ export function PocketCard({ pocket, index = 0, onPress }: Props) {
         onPressOut={() => {
           scale.value = withSpring(1, { damping: 16, stiffness: 260 });
         }}
-        style={[styles.card, anim, ready && styles.cardReady]}
+        style={[styles.card, anim, ready && styles.cardReady, settled && styles.cardSettled]}
       >
         <View style={styles.top}>
           <View style={styles.iconWrap}>
@@ -47,7 +49,9 @@ export function PocketCard({ pocket, index = 0, onPress }: Props) {
             <Text style={styles.name} numberOfLines={1}>
               {pocket.name}
             </Text>
-            <Text style={styles.due}>{dueLabel(pocket.dueDay)}</Text>
+            <Text style={[styles.due, settled && styles.dueSettled]}>
+              {dueLabel(pocket.dueDay, settled)}
+            </Text>
           </View>
           <Text style={styles.chev}>›</Text>
         </View>
@@ -64,8 +68,10 @@ export function PocketCard({ pocket, index = 0, onPress }: Props) {
           delay={120 + index * 60}
         />
 
-        <Text style={[styles.remainder, ready && styles.remainderReady]}>
-          {ready ? 'Siap dikeluarkan untuk pembayaran' : remainderLabel(pocket.currentAmount, pocket.targetAmount)}
+        <Text style={[styles.remainder, (ready || settled) && styles.remainderReady]}>
+          {ready && !settled
+            ? 'Siap dikeluarkan untuk pembayaran'
+            : remainderLabel(pocket.currentAmount, pocket.targetAmount, settled)}
         </Text>
       </AnimPressable>
     </Animated.View>
@@ -84,6 +90,10 @@ const styles = StyleSheet.create({
   cardReady: {
     borderColor: 'rgba(240, 201, 120, 0.35)',
     backgroundColor: 'rgba(240, 201, 120, 0.06)',
+  },
+  cardSettled: {
+    borderColor: 'rgba(126, 200, 160, 0.35)',
+    backgroundColor: 'rgba(126, 200, 160, 0.06)',
   },
   top: {
     flexDirection: 'row',
@@ -111,6 +121,9 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontSize: 12,
     fontFamily: fonts.body,
+  },
+  dueSettled: {
+    color: colors.accentSoft,
   },
   chev: {
     color: colors.textDim,

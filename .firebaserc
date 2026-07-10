@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "money-tracker-2396f"
+  },
+  "targets": {
+    "money-tracker-2396f": {
+      "hosting": {
+        "sortu": [
+          "sortu-app"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

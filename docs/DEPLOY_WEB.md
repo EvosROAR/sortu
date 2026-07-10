@@ -37,11 +37,28 @@ Di repo GitHub **EvosROAR/sortu** → **Settings** → **Secrets and variables**
 | `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | dari `.env` |
 | `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | dari `.env` |
 | `EXPO_PUBLIC_FIREBASE_APP_ID` | dari `.env` |
-| `FIREBASE_SERVICE_ACCOUNT` | JSON service account (lihat bawah) |
+| `FIREBASE_TOKEN` | dari `firebase login:ci` (lihat bawah) |
 
-**Service account:** Firebase Console → Project settings → **Service accounts** → Generate new private key → paste **seluruh isi JSON** ke secret `FIREBASE_SERVICE_ACCOUNT`.
+**Firebase token (sekali saja):**
 
-Role minimal: **Firebase Hosting Admin** pada project `money-tracker-2396f`.
+```powershell
+cd D:\Projects\sortu
+firebase login:ci
+```
+
+Copy token yang muncul, lalu:
+
+```powershell
+gh secret set FIREBASE_TOKEN --body "PASTE_TOKEN" --repo EvosROAR/sortu
+```
+
+Atau jalankan script otomatis untuk `EXPO_PUBLIC_*`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup-github-secrets.ps1
+```
+
+**Service account (alternatif lama):** tidak dipakai — workflow memakai `FIREBASE_TOKEN`.
 
 ## Deploy manual (lokal)
 

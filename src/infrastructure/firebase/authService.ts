@@ -72,6 +72,13 @@ export const authService = {
     await signOut(getFirebaseAuth());
   },
 
+  async getIdToken(): Promise<string | null> {
+    if (!isFirebaseConfigured()) return null;
+    const user = getFirebaseAuth().currentUser;
+    if (!user) return null;
+    return user.getIdToken();
+  },
+
   onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
     if (!isFirebaseConfigured()) {
       callback(null);

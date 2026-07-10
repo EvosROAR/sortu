@@ -107,7 +107,7 @@ sortu/
 | 2 – Reminder | H-3 / H-1 + alarm jam 09:00 | ✅ |
 | 3 – Firebase | Auth + sync Firestore | ✅ |
 | 3b – Backup | Ekspor & impor JSON | ✅ |
-| 4 – Payment | Midtrans sandbox | nanti |
+| 4 – Payment | Midtrans sandbox dari layar kantong | ✅ (butuh setup `.env` + deploy functions) |
 | 5 – Polish | Icon/splash, Play Store | belakangan |
 
 ---
@@ -118,6 +118,7 @@ sortu/
 - **Pengingat jatuh tempo** — H-3 / H-1 / hari H jam **09:00** (alarm + catch-up)  
 - **Backup JSON** — ekspor ke HP & impor dari menu Akun  
 - **Firebase Auth + sync** (lihat `docs/FIREBASE_SETUP.md`)
+- **Midtrans sandbox** — bayar dari kantong via Vercel API (lihat `docs/VERCEL_SETUP.md`)
 
 ### Build APK stabil
 

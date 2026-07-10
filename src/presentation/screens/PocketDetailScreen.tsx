@@ -1,7 +1,7 @@
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import {
@@ -12,6 +12,17 @@ import {
   ProgressBar,
   Screen,
 } from '@/presentation/components/ui';
+import { MidtransSnapModal } from '@/presentation/components/MidtransSnapModal';
+import {
+  createSnapTransaction,
+  openSnapOnWeb,
+  SnapPayResult,
+} from '@/application/MidtransPaymentService';
+import { isFirebaseConfigured } from '@/infrastructure/firebase/config';
+import {
+  isMidtransConfigured,
+  MIDTRANS_MIN_AMOUNT,
+} from '@/infrastructure/midtrans/midtransConfig';
 import { RootStackParamList } from '@/presentation/navigation/types';
 import {
   confirmAction,
@@ -21,6 +32,7 @@ import {
 } from '@/lib/confirm';
 import { colors, dueLabel, fonts, formatRp, remainderLabel } from '@/lib/format';
 import { useSortuStore } from '@/store/sortuStore';
+import { useAuthStore } from '@/store/authStore';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PocketDetail'>;
 type R = RouteProp<RootStackParamList, 'PocketDetail'>;
@@ -34,8 +46,19 @@ export function PocketDetailScreen() {
   const eventsForPocket = useSortuStore((s) => s.eventsForPocket);
   const markPaid = useSortuStore((s) => s.markPaid);
   const deletePocket = useSortuStore((s) => s.deletePocket);
+  const allEvents = useSortuStore((s) => s.events);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const guestMode = useAuthStore((s) => s.guestMode);
   const [payInput, setPayInput] = useState('');
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [midtransLoading, setMidtransLoading] = useState(false);
+  const [snapToken, setSnapToken] = useState<string | null>(null);
+  const [snapOrderId, setSnapOrderId] = useState('');
+  const [snapVisible, setSnapVisible] = useState(false);
+  const [midtransAmount, setMidtransAmount] = useState<number | null>(null);
+
+  const midtransReady =
+    isFirebaseConfigured() && isMidtransConfigured() && isAuthenticated && !guestMode;
 
   const events = useMemo(
     () => (pocket ? eventsForPocket(pocket.id) : []),
@@ -95,6 +118,101 @@ export function PocketDetailScreen() {
       },
       'Hapus',
     );
+  };
+
+  const resolvePayAmount = () => {
+    const amount = payInput.trim() ? parseAmountInput(payInput) : pocket.currentAmount;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showMessage('Nominal tidak valid', 'Isi nominal atau pastikan kantong punya saldo.');
+      return null;
+    }
+    if (amount > pocket.currentAmount) {
+      showMessage('Saldo tidak cukup', `Isi kantong hanya ${formatRp(pocket.currentAmount)}.`);
+      return null;
+    }
+    return amount;
+  };
+
+  const applyMidtransPayment = (orderId: string, amount: number) => {
+    const alreadyRecorded = allEvents.some((e) => e.note?.includes(orderId));
+    if (alreadyRecorded) {
+      showMessage('Sudah tercatat', 'Pembayaran ini sudah masuk riwayat.');
+      return;
+    }
+
+    const result = markPaid(pocket.id, amount, `Midtrans · ${orderId}`);
+    if (!result.ok) {
+      showMessage('Gagal', result.error);
+      return;
+    }
+    setPayInput('');
+    showMessage('Pembayaran berhasil', 'Saldo kantong sudah dikurangi (sandbox Midtrans).');
+  };
+
+  const handleSnapResult = (result: SnapPayResult, amount: number) => {
+    if (result.status === 'success') {
+      applyMidtransPayment(result.orderId, amount);
+      return;
+    }
+    if (result.status === 'pending') {
+      showMessage(
+        'Menunggu konfirmasi',
+        'Pembayaran masih pending. Cek riwayat Midtrans atau coba lagi nanti.',
+      );
+      return;
+    }
+    if (result.status === 'error') {
+      showMessage('Pembayaran gagal', result.message);
+    }
+  };
+
+  const onMidtransPay = async () => {
+    if (!midtransReady) {
+      showMessage(
+        'Midtrans belum siap',
+        guestMode || !isAuthenticated
+          ? 'Login dulu (bukan mode guest) untuk bayar via Midtrans sandbox.'
+          : 'Isi EXPO_PUBLIC_MIDTRANS_CLIENT_KEY + EXPO_PUBLIC_MIDTRANS_API_URL di .env (lihat docs/VERCEL_SETUP.md).',
+      );
+      return;
+    }
+
+    const amount = resolvePayAmount();
+    if (amount == null) return;
+    if (amount < MIDTRANS_MIN_AMOUNT) {
+      showMessage(
+        'Nominal terlalu kecil',
+        `Midtrans sandbox minimal ${formatRp(MIDTRANS_MIN_AMOUNT)}.`,
+      );
+      return;
+    }
+
+    setMidtransLoading(true);
+    try {
+      const { snapToken: token, orderId } = await createSnapTransaction({
+        pocketId: pocket.id,
+        pocketName: pocket.name,
+        amount,
+      });
+
+      if (Platform.OS === 'web') {
+        setMidtransAmount(amount);
+        const result = await openSnapOnWeb(token, orderId);
+        handleSnapResult(result, amount);
+        setMidtransAmount(null);
+        return;
+      }
+
+      setMidtransAmount(amount);
+      setSnapToken(token);
+      setSnapOrderId(orderId);
+      setSnapVisible(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal membuat transaksi Midtrans.';
+      showMessage('Midtrans', message);
+    } finally {
+      setMidtransLoading(false);
+    }
   };
 
   return (
@@ -173,7 +291,38 @@ export function PocketDetailScreen() {
             onPress={onPay}
             disabled={pocket.currentAmount <= 0}
           />
+          <View style={styles.midtransBlock}>
+            <PrimaryButton
+              label={midtransLoading ? 'Menyiapkan…' : 'Bayar via Midtrans (sandbox)'}
+              onPress={onMidtransPay}
+              disabled={pocket.currentAmount <= 0 || midtransLoading}
+            />
+            {midtransLoading ? (
+              <ActivityIndicator color={colors.accentSoft} style={styles.midtransSpinner} />
+            ) : null}
+            <Text style={styles.midtransHint}>
+              Simulasi bayar sungguhan lewat Midtrans sandbox. Setelah sukses, saldo kantong
+              berkurang otomatis. Butuh login + setup Midtrans di `.env`.
+            </Text>
+          </View>
         </View>
+
+        <MidtransSnapModal
+          visible={snapVisible}
+          snapToken={snapToken}
+          orderId={snapOrderId}
+          onDismiss={() => {
+            setSnapVisible(false);
+            setSnapToken(null);
+            setMidtransAmount(null);
+          }}
+          onResult={(result) => {
+            if (midtransAmount != null) {
+              handleSnapResult(result, midtransAmount);
+            }
+            setMidtransAmount(null);
+          }}
+        />
 
         <Text style={[styles.section, { marginTop: 28 }]}>Riwayat kantong</Text>
         {events.length === 0 ? (
@@ -335,6 +484,20 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontFamily: fonts.body,
   },
+  midtransBlock: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(240, 201, 120, 0.15)',
+    gap: 8,
+  },
+  midtransHint: {
+    color: colors.textDim,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: fonts.body,
+  },
+  midtransSpinner: { marginTop: 4 },
   event: {
     flexDirection: 'row',
     justifyContent: 'space-between',

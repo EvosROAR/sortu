@@ -12,6 +12,7 @@ import {
   filterHistoryEvents,
 } from '@/application/historyFilters';
 import { BackLink, Screen, useScreenContentInsets } from '@/presentation/components/ui';
+import { HistoryScreenSkeleton } from '@/presentation/components/Skeleton';
 import { RootStackParamList } from '@/presentation/navigation/types';
 import { colors, fonts, formatRp } from '@/lib/format';
 import { useSortuStore } from '@/store/sortuStore';
@@ -54,6 +55,8 @@ export function HistoryScreen() {
   const navigation = useNavigation<Nav>();
   const events = useSortuStore((s) => s.events);
   const pockets = useSortuStore((s) => s.pockets);
+  const isHydrated = useSortuStore((s) => s.isHydrated);
+  const syncReady = useSortuStore((s) => s.syncReady);
   const contentInsets = useScreenContentInsets(40);
 
   const [monthKey, setMonthKey] = useState(ALL_MONTHS);
@@ -66,6 +69,10 @@ export function HistoryScreen() {
     () => filterHistoryEvents(events, monthKey, pocketKey),
     [events, monthKey, pocketKey],
   );
+
+  if (!isHydrated || !syncReady) {
+    return <HistoryScreenSkeleton />;
+  }
 
   return (
     <Screen scrollable>

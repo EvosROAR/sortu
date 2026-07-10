@@ -32,7 +32,6 @@ export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const unallocated = useSortuStore((s) => s.unallocated);
   const pockets = useSortuStore((s) => s.pockets);
-  const isHydrated = useSortuStore((s) => s.isHydrated);
   const remindersEnabled = useSortuStore((s) => s.remindersEnabled);
   const setRemindersEnabled = useSortuStore((s) => s.setRemindersEnabled);
 
@@ -213,8 +212,6 @@ export function HomeScreen() {
         ) : guestMode ? (
           <Text style={styles.syncHint}>Mode lokal · belum sync cloud</Text>
         ) : null}
-
-        {!isHydrated ? <Text style={styles.hint}>Memuat data…</Text> : null}
 
         {dueSoon.length > 0 ? (
           <Animated.View entering={FadeInDown.delay(40)} style={styles.dueBanner}>

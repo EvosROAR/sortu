@@ -40,7 +40,8 @@
           "color": "#6EF0B0",
           "defaultChannel": "sortu-due-reminders"
         }
-      ]
+      ],
+      "expo-splash-screen"
     ],
     "extra": {
       "eas": {

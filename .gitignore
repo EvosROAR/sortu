@@ -15,3 +15,4 @@ web-build/
 *.aab
 android/
 ios/
+.firebase/
